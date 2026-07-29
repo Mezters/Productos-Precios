@@ -339,7 +339,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
           })),
         })),
       };
-    }    } else {
+    } else {
       delete producto.configEstampado;
     }
 
