@@ -310,15 +310,14 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
       responsable: responsableNombre,
       historialPrecios: [...actualHistorial, nuevoRegistroHistorial],
       escalasVolumen: escalasFinales,
-    };
-
-    if (form.esPersonalizable && form.configEstampado?.tamanos?.length > 0) {
+    };    if (form.esPersonalizable && form.configEstampado?.tamanos?.length > 0) {
       producto.configEstampado = {
         titulo: form.configEstampado.titulo || '',
         aditivo: Boolean(form.configEstampado.aditivo),
         tamanos: form.configEstampado.tamanos.map((t) => ({
           id: t.id || t.nombre.toLowerCase().replace(/\s+/g, '-'),
           nombre: t.nombre.trim() || 'Opción',
+          minUnidadesMayoreo: parseInt(t.minUnidadesMayoreo, 10) || 3,
           precioPrincipal: typeof t.precioPrincipal === 'string'
             ? parseFormattedNumber(t.precioPrincipal)
             : (t.precioPrincipal || t.precio || pPers),
@@ -328,6 +327,9 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
           precioAdicional: typeof t.precioAdicional === 'string'
             ? parseFormattedNumber(t.precioAdicional)
             : (t.precioAdicional || 0),
+          precioAdicionalMayoreo: typeof t.precioAdicionalMayoreo === 'string'
+            ? parseFormattedNumber(t.precioAdicionalMayoreo)
+            : (t.precioAdicionalMayoreo || 0),
           escalas: (t.escalas || []).map((e) => ({
             minUnidades: parseInt(e.minUnidades, 10) || 1,
             maxUnidades: parseInt(e.maxUnidades, 10) || 999,
@@ -337,7 +339,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
           })),
         })),
       };
-    } else {
+    }    } else {
       delete producto.configEstampado;
     }
 
@@ -763,7 +765,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       <div>
                         <label className="text-[10px] font-semibold text-surface-600 mb-1 block uppercase tracking-wider">
                           Precio 1 Ud
@@ -778,7 +780,20 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
                       </div>
                       <div>
                         <label className="text-[10px] font-semibold text-primary-600 mb-1 block uppercase tracking-wider">
-                          Precio 3+ Uds (Por Mayor)
+                          Mín. Uds Mayoreo
+                        </label>
+                        <input
+                          type="number"
+                          min="2"
+                          max="999"
+                          value={tamano.minUnidadesMayoreo ?? 3}
+                          onChange={(e) => updateTamano(index, 'minUnidadesMayoreo', parseInt(e.target.value, 10) || 3)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-200 rounded-lg text-sm text-center font-bold text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-primary-600 mb-1 block uppercase tracking-wider">
+                          Precio Mayoreo
                         </label>
                         {renderPriceInput(
                           tamano.precioMayoreo ?? '',
@@ -789,8 +804,8 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
                         )}
                       </div>
                       <div>
-                        <label className="text-[10px] font-semibold text-surface-400 mb-1 block uppercase tracking-wider">
-                          + Extra / Adicional
+                        <label className="text-[10px] font-semibold text-surface-600 mb-1 block uppercase tracking-wider">
+                          + Extra 1 Ud
                         </label>
                         {renderPriceInput(
                           tamano.precioAdicional ?? '',
@@ -800,6 +815,24 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
                           `tamano_padicional_${index}`
                         )}
                       </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-surface-100 text-xs">
+                      <span className="text-[10px] font-semibold text-accent-700 uppercase tracking-wider shrink-0">
+                        + Extra Mayoreo:
+                      </span>
+                      <div className="w-32">
+                        {renderPriceInput(
+                          tamano.precioAdicionalMayoreo ?? '',
+                          (val) => updateTamano(index, 'precioAdicionalMayoreo', val),
+                          (num) => updateTamano(index, 'precioAdicionalMayoreo', num),
+                          '3.000',
+                          `tamano_padicionalmayoreo_${index}`
+                        )}
+                      </div>
+                      <span className="text-[10px] text-surface-400">
+                        (Aplica cuando se piden {tamano.minUnidadesMayoreo || 3}+ unidades)
+                      </span>
                     </div>
 
                     {/* Escalas de volumen específicas para esta opción */}

@@ -1,64 +1,34 @@
-/**
- * Genera un UUID v4 simple
- */
 export function generateId() {
-  return 'xxxx-xxxx-xxxx'.replace(/x/g, () =>
-    Math.floor(Math.random() * 16).toString(16)
-  );
+  return 'prod_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
 }
 
-/**
- * Formatea un número con separadores de miles y símbolo de moneda
- * @param {number} value
- * @param {string} currency - Código de moneda (COP, USD, etc.)
- * @returns {string}
- */
-export function formatCurrency(value, currency = 'COP') {
-  if (value == null || isNaN(value)) return '$0';
-  
-  const formatted = new Intl.NumberFormat('es-CO', {
+export function formatCurrency(amount, currency = 'COP') {
+  if (amount === undefined || amount === null || isNaN(amount)) return '$ 0';
+  const num = Number(amount);
+  return new Intl.NumberFormat('es-CO', {
     style: 'currency',
-    currency: currency,
+    currency: currency || 'COP',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
-
-  return formatted;
+  }).format(num).replace('COP', '').trim();
 }
 
-/**
- * Formatea un número con separadores de miles (sin símbolo de moneda)
- * @param {number|string} value
- * @returns {string}
- */
-export function formatNumber(value) {
-  if (value == null || value === '') return '';
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '';
-  return new Intl.NumberFormat('es-CO').format(num);
+export function formatNumber(amount) {
+  if (amount === undefined || amount === null || isNaN(amount)) return '0';
+  return new Intl.NumberFormat('es-CO').format(Number(amount));
 }
 
-/**
- * Parsea un string formateado con separadores a número
- * @param {string} formattedValue
- * @returns {number}
- */
-export function parseFormattedNumber(formattedValue) {
-  if (!formattedValue) return 0;
-  const cleaned = String(formattedValue).replace(/[^\d]/g, '');
-  return parseInt(cleaned, 10) || 0;
+export function parseFormattedNumber(input) {
+  if (typeof input === 'number') return input;
+  if (!input) return 0;
+  const clean = String(input).replace(/[^\d]/g, '');
+  return parseInt(clean, 10) || 0;
 }
 
-/**
- * Formatea una fecha a formato amigable en español (ej: "26 jul 2026, 8:20 PM")
- * @param {string|Date} dateInput
- * @returns {string}
- */
 export function formatDate(dateInput) {
-  if (!dateInput) return 'Fecha no disponible';
+  if (!dateInput) return '';
   try {
     const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return 'Fecha inválida';
     return d.toLocaleDateString('es-CO', {
       day: 'numeric',
       month: 'short',
@@ -81,7 +51,8 @@ export function calcularPrecio(
   personalizado,
   estampadoPrincipal = null,
   estampadosAdicionales = [],
-  requiereDiseno = false
+  requiereDiseno = false,
+  precioDisenoCustom = null
 ) {
   if (!producto || cantidad <= 0) {
     return {
@@ -112,10 +83,8 @@ export function calcularPrecio(
 
   if (personalizado) {
     if (esAditivo) {
-      // En modo aditivo (Servicios), la tarifa base (ej: Diagnóstico $20.000) se mantiene fija
       precioBaseOriginal = producto.precioPersonalizado || producto.precioSinPersonalizar || 0;
     } else {
-      // En modo sustitutivo (Camisetas), la opción elegida reemplaza el precio base
       if (estampadoPrincipal && (estampadoPrincipal.precioPrincipal || estampadoPrincipal.precio)) {
         precioBaseOriginal = estampadoPrincipal.precioPrincipal || estampadoPrincipal.precio;
       } else {
@@ -137,9 +106,12 @@ export function calcularPrecio(
           break;
         }
       }
-    } else if (estampadoPrincipal.precioMayoreo && estampadoPrincipal.precioMayoreo > 0 && cantidad >= 3) {
-      precioUnitarioBase = estampadoPrincipal.precioMayoreo;
-      escalaAplicada = { minUnidades: 3, maxUnidades: 999, precioPersonalizado: estampadoPrincipal.precioMayoreo };
+    } else if (estampadoPrincipal.precioMayoreo && estampadoPrincipal.precioMayoreo > 0) {
+      const minMay = estampadoPrincipal.minUnidadesMayoreo || 3;
+      if (cantidad >= minMay) {
+        precioUnitarioBase = estampadoPrincipal.precioMayoreo;
+        escalaAplicada = { minUnidades: minMay, maxUnidades: 999, precioPersonalizado: estampadoPrincipal.precioMayoreo };
+      }
     }
   }
 
@@ -163,31 +135,40 @@ export function calcularPrecio(
   let costoEstampadosAdicionales = 0;
 
   if (personalizado) {
-    // En modo aditivo (Servicios), si se elige una opción principal diferente a "Ninguno" o "Diagnóstico solo", se suma a la tarifa base
     if (esAditivo && estampadoPrincipal) {
       const pPrincipal = estampadoPrincipal.precioPrincipal || estampadoPrincipal.precio || 0;
       const pNombre = (estampadoPrincipal.nombre || '').toLowerCase();
-
-      // Si la opción no se llama "diagnóstico", sumamos su costo al diagnóstico base
       if (!pNombre.includes('diagnóstico') && !pNombre.includes('diagnostico') && pPrincipal !== precioBaseOriginal) {
         costoEstampadosAdicionales += pPrincipal;
       }
     }
 
-    // Estampados/Servicios adicionales (Extras)
     if (estampadosAdicionales.length > 0) {
-      costoEstampadosAdicionales += estampadosAdicionales.reduce(
-        (sum, est) => sum + (est.precioPrincipal || est.precioAdicional || est.precio || 0),
-        0
-      );
+      costoEstampadosAdicionales += estampadosAdicionales.reduce((sum, est) => {
+        const minMayEst = est.minUnidadesMayoreo || 3;
+        const pExtra = (cantidad >= minMayEst && est.precioAdicionalMayoreo && est.precioAdicionalMayoreo > 0)
+          ? est.precioAdicionalMayoreo
+          : (est.precioPrincipal || est.precioAdicional || est.precio || 0);
+        return sum + pExtra;
+      }, 0);
     }
   }
 
   const precioUnitario = precioUnitarioBase + costoEstampadosAdicionales;
   const precioSubtotal = precioUnitario * cantidad;
 
-  // 4. Costo de elaboración de diseño (+ $25.000 único al total)
-  const costoDiseno = requiereDiseno ? 25000 : 0;
+  // 4. Costo de elaboración de diseño (configurable o $25.000 por defecto)
+  let costoDiseno = 0;
+  if (requiereDiseno) {
+    if (precioDisenoCustom !== null && precioDisenoCustom !== undefined && precioDisenoCustom !== '') {
+      costoDiseno = Number(precioDisenoCustom) || 0;
+    } else if (producto.precioDiseno !== undefined && producto.precioDiseno !== null && producto.precioDiseno !== '') {
+      costoDiseno = Number(producto.precioDiseno) || 0;
+    } else {
+      costoDiseno = 25000;
+    }
+  }
+
   const precioTotal = precioSubtotal + costoDiseno;
 
   return {
@@ -206,12 +187,10 @@ export function calcularPrecio(
  * Recalcula todos los ítems de una cotización acumulando la cantidad EXCLUSIVAMENTE
  * para productos de la familia/categoría 'PD' para otorgar el precio al por mayor
  * a todas las prendas combinadas aunque sean de diferente talla o referencia.
- * Para demás productos (ej: Mugs), cada referencia calcula su precio según su cantidad individual.
  */
 export function recalcularCarritoConAcumulacion(cartItems = [], productos = []) {
   if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) return [];
 
-  // 1. Sumar cantidad total acumulada EXCLUSIVAMENTE para prendas/productos PD
   let acumuladoTotalPD = 0;
 
   cartItems.forEach((item) => {
@@ -225,7 +204,6 @@ export function recalcularCarritoConAcumulacion(cartItems = [], productos = []) 
     }
   });
 
-  // 2. Recalcular precio unitario y total de cada ítem
   return cartItems.map((item) => {
     if (!item) return item;
     const prodOriginal = (productos || []).find((p) => p && p.id === item.productoId);
@@ -236,8 +214,6 @@ export function recalcularCarritoConAcumulacion(cartItems = [], productos = []) 
     const nombreLower = (item.nombre || '').toLowerCase().trim();
     const esPD = nombreLower.includes('pd') || catLower.includes('pd');
 
-    // Si es producto PD, aplica la cantidad acumulada de la familia PD.
-    // Si no es PD, aplica estrictamente su propia cantidad individual.
     const cantidadParaEscala = esPD ? acumuladoTotalPD : (item.cantidad || 1);
 
     const resAcumulado = calcularPrecio(
@@ -246,11 +222,12 @@ export function recalcularCarritoConAcumulacion(cartItems = [], productos = []) 
       item.personalizado,
       item.estampadoPrincipal,
       item.estampadosAdicionales,
-      item.requiereDiseno
+      item.requiereDiseno,
+      item.precioDisenoCustom
     );
 
     const precioUnitarioEscala = resAcumulado?.precioUnitario || item.precioUnitario || 0;
-    const costoDiseno = item.costoDiseno || 0;
+    const costoDiseno = resAcumulado?.costoDiseno !== undefined ? resAcumulado.costoDiseno : (item.costoDiseno || 0);
     const precioTotalItem = (precioUnitarioEscala * (item.cantidad || 1)) + costoDiseno;
 
     const aplicaDescuentoAcumulado = esPD && cantidadParaEscala > (item.cantidad || 1) && Boolean(resAcumulado?.escalaAplicada);
@@ -259,6 +236,7 @@ export function recalcularCarritoConAcumulacion(cartItems = [], productos = []) 
       ...item,
       precioUnitario: precioUnitarioEscala,
       precioTotal: precioTotalItem,
+      costoDiseno: costoDiseno,
       aplicaDescuentoAcumulado,
       cantidadAcumuladaGrupo: cantidadParaEscala,
       escalaAplicada: resAcumulado?.escalaAplicada || null,
@@ -266,9 +244,6 @@ export function recalcularCarritoConAcumulacion(cartItems = [], productos = []) 
   });
 }
 
-/**
- * Calcula el porcentaje de ahorro entre el precio original y el precio de la escala
- */
 export function calcularDescuento(precioOriginal, precioEscala) {
   if (!precioOriginal || precioOriginal <= 0 || !precioEscala || precioEscala <= 0) return 0;
   if (precioEscala >= precioOriginal) return 0;

@@ -6,7 +6,6 @@ import {
   Copy,
   MessageCircle,
   Check,
-  Plus,
 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../utils/helpers';
 
@@ -40,7 +39,7 @@ export default function CartDrawer({
           msg += `   • Extras: ${item.estampadosAdicionales.map((e) => e.nombre).join(', ')}\n`;
         }
         if (item.costoDiseno > 0) {
-          msg += `   • Elaboración de Diseño: Sí (+$25.000)\n`;
+          msg += `   • Elaboración de Diseño: Sí (+${formatCurrency(item.costoDiseno, item.moneda)})\n`;
         }
       } else {
         msg += `   • Tipo: Sin personalizar\n`;
@@ -50,7 +49,7 @@ export default function CartDrawer({
     });
 
     msg += `-----------------------------------\n`;
-    msg += `💰 *GRAN TOTAL: ${formatCurrency(grandTotal, 'COP')}*\n`;
+    msg += `💲 *GRAN TOTAL: ${formatCurrency(grandTotal, 'COP')}*\n`;
     msg += `📦 Total Unidades: ${formatNumber(totalUnidades)} uds\n\n`;
     msg += `_¡Quedamos atentos a tu confirmación!_`;
 
@@ -173,7 +172,7 @@ export default function CartDrawer({
                   {item.costoDiseno > 0 && (
                     <div className="flex justify-between text-primary-700">
                       <span>Diseño:</span>
-                      <span className="font-bold">+$25.000</span>
+                      <span className="font-bold">+{formatCurrency(item.costoDiseno, item.moneda)}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-surface-100 pt-1 mt-1">
@@ -185,13 +184,13 @@ export default function CartDrawer({
 
                   {item.aplicaDescuentoAcumulado && (
                     <div className="mt-1.5 px-2 py-1 bg-accent-50 text-accent-700 rounded-lg text-[10px] font-bold flex items-center gap-1 border border-accent-200/60">
-                      🏷️ ¡Precio x Mayor aplicado! ({formatNumber(item.cantidadAcumuladaGrupo)} uds acumuladas en cotización)
+                      ✨ ¡Precio x Mayor aplicado! ({formatNumber(item.cantidadAcumuladaGrupo)} uds acumuladas en cotización)
                     </div>
                   )}
                 </div>
 
                 <div className="mt-2.5 flex items-center justify-between pt-1">
-                  <span className="text-xs text-surface-400">Subtotal ítem</span>
+                  <span className="text-xs text-surface-400">Subtotal Ítem</span>
                   <span className="text-sm font-extrabold text-surface-900">
                     {formatCurrency(item.precioTotal, item.moneda)}
                   </span>

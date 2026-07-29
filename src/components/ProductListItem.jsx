@@ -6,20 +6,46 @@ export default function ProductListItem({ producto, onEdit, onDuplicate, onDelet
   const [imgError, setImgError] = useState(false);
   const esPersonalizable = producto.esPersonalizable !== undefined ? producto.esPersonalizable : true;
 
-  // Escalas de volumen de mayoreo (reglas con minUnidades > 1)
+  // Escalas de volumen base (reglas con minUnidades > 1)
   const escalasBase = (producto.escalasVolumen || []).filter((e) => {
     if (e.minUnidades <= 1) return false;
     const pBase = producto.precioSinPersonalizar || 0;
     return e.precioSinPersonalizar > 0 && (pBase === 0 || e.precioSinPersonalizar < pBase || e.minUnidades > 1);
   });
 
-  const escalasPers = esPersonalizable
-    ? (producto.escalasVolumen || []).filter((e) => {
-        if (e.minUnidades <= 1) return false;
-        const pPers = producto.precioPersonalizado || producto.precioSinPersonalizar || 0;
-        return e.precioPersonalizado > 0 && (pPers === 0 || e.precioPersonalizado < pPers || e.minUnidades > 1);
-      })
-    : [];
+  // Obtener escalas de volumen reales para el precio personalizado
+  let escalasPers = [];
+  const primerTamano = producto.configEstampado?.tamanos?.[0];
+
+  if (esPersonalizable && primerTamano) {
+    if (primerTamano.escalas && primerTamano.escalas.length > 0) {
+      escalasPers = primerTamano.escalas
+        .filter((e) => e.minUnidades > 1 && e.precio > 0)
+        .map((e) => ({
+          minUnidades: e.minUnidades,
+          maxUnidades: e.maxUnidades,
+          precioPersonalizado: e.precio,
+        }));
+    } else if (primerTamano.precioMayoreo && primerTamano.precioMayoreo > 0) {
+      const minMay = primerTamano.minUnidadesMayoreo || 3;
+      escalasPers = [
+        {
+          minUnidades: minMay,
+          maxUnidades: 999,
+          precioPersonalizado: primerTamano.precioMayoreo,
+        },
+      ];
+    }
+  }
+
+  // Fallback a escalasVolumen generales si no hay en la opción principal
+  if (esPersonalizable && escalasPers.length === 0 && producto.escalasVolumen) {
+    const pPers = producto.precioPersonalizado || producto.precioSinPersonalizar || 0;
+    escalasPers = producto.escalasVolumen.filter((e) => {
+      if (e.minUnidades <= 1) return false;
+      return e.precioPersonalizado > 0 && (pPers === 0 || e.precioPersonalizado < pPers || e.minUnidades > 1);
+    });
+  }
 
   return (
     <div className="group bg-white rounded-2xl border border-surface-200/60 p-3.5 sm:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] hover:border-surface-300 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">

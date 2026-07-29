@@ -15,6 +15,7 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
   const [cantidadInput, setCantidadInput] = useState('1');
   const [personalizado, setPersonalizado] = useState(false);
   const [requiereDiseno, setRequiereDiseno] = useState(false);
+  const [precioDisenoCustom, setPrecioDisenoCustom] = useState(25000);
   const [imgError, setImgError] = useState(false);
 
   const esPersonalizable = producto?.esPersonalizable !== undefined ? producto.esPersonalizable : true;
@@ -33,6 +34,12 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
       setCantidadInput('1');
       setPersonalizado(esSoloPersonalizado ? true : false);
       setRequiereDiseno(false);
+
+      const defDis = producto.precioDiseno !== undefined && producto.precioDiseno !== null && producto.precioDiseno !== ''
+        ? Number(producto.precioDiseno)
+        : 25000;
+      setPrecioDisenoCustom(defDis);
+
       setEstampadosAdicionales([]);
       setImgError(false);
 
@@ -45,8 +52,8 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
   }, [isOpen, producto, esPersonalizable, esSoloPersonalizado]);
 
   const resultado = useMemo(
-    () => calcularPrecio(producto, cantidad, esPersonalizable ? personalizado : false, estampadoPrincipal, estampadosAdicionales, requiereDiseno),
-    [producto, cantidad, personalizado, esPersonalizable, estampadoPrincipal, estampadosAdicionales, requiereDiseno]
+    () => calcularPrecio(producto, cantidad, esPersonalizable ? personalizado : false, estampadoPrincipal, estampadosAdicionales, requiereDiseno, precioDisenoCustom),
+    [producto, cantidad, personalizado, esPersonalizable, estampadoPrincipal, estampadosAdicionales, requiereDiseno, precioDisenoCustom]
   );
 
   const escalasARenderizar = useMemo(() => {
@@ -64,31 +71,33 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
 
       if (estampadoPrincipal.precioMayoreo && estampadoPrincipal.precioMayoreo > 0) {
         const p1Ud = estampadoPrincipal.precioPrincipal || producto.precioPersonalizado;
-        const p3Uds = estampadoPrincipal.precioMayoreo;
+        const pMay = estampadoPrincipal.precioMayoreo;
+        const minMay = estampadoPrincipal.minUnidadesMayoreo || 3;
         return [
-          { minUnidades: 1, maxUnidades: 2, precioEscala: p1Ud, precioBase1Ud: p1Ud },
-          { minUnidades: 3, maxUnidades: 999, precioEscala: p3Uds, precioBase1Ud: p1Ud },
+          { minUnidades: 1, maxUnidades: minMay - 1, precioEscala: p1Ud, precioBase1Ud: p1Ud },
+          { minUnidades: minMay, maxUnidades: 999, precioEscala: pMay, precioBase1Ud: p1Ud },
         ];
       }
     }
 
     if (producto.escalasVolumen && producto.escalasVolumen.length > 0) {
-      return producto.escalasVolumen.map((escala) => {
-        let precioEscala = escala.precioSinPersonalizar;
-        let precioBase1Ud = producto.precioSinPersonalizar;
+      const p1Ud = personalizado
+        ? (producto.precioPersonalizado || producto.precioSinPersonalizar)
+        : producto.precioSinPersonalizar;
 
-        if (personalizado) {
-          precioBase1Ud = estampadoPrincipal?.precioPrincipal || producto.precioPersonalizado;
-          const pRefSinVol = producto.precioPersonalizado || precioBase1Ud;
-          const descuentoPesos = Math.max(0, pRefSinVol - (escala.precioPersonalizado || pRefSinVol));
-          precioEscala = Math.max(0, precioBase1Ud - descuentoPesos);
+      return producto.escalasVolumen.map((esc) => {
+        let precioEsc = personalizado ? esc.precioPersonalizado : esc.precioSinPersonalizar;
+
+        if (personalizado && (!precioEsc || precioEsc === p1Ud)) {
+          const descBase = producto.precioSinPersonalizar - esc.precioSinPersonalizar;
+          precioEsc = Math.max(0, p1Ud - Math.max(0, descBase));
         }
 
         return {
-          minUnidades: escala.minUnidades,
-          maxUnidades: escala.maxUnidades,
-          precioEscala,
-          precioBase1Ud,
+          minUnidades: esc.minUnidades,
+          maxUnidades: esc.maxUnidades,
+          precioEscala: precioEsc || p1Ud,
+          precioBase1Ud: p1Ud,
         };
       });
     }
@@ -96,18 +105,18 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
     return [];
   }, [producto, personalizado, estampadoPrincipal]);
 
-  const descuento = calcularDescuento(
-    resultado.precioBaseOriginal,
-    resultado.precioUnitarioBase || resultado.precioUnitario
-  );
+  const descuento = useMemo(() => {
+    if (!resultado.escalaAplicada) return 0;
+    return calcularDescuento(resultado.precioBaseOriginal, resultado.precioUnitarioBase);
+  }, [resultado]);
 
-  const handleCantidadChange = (value) => {
-    const cleaned = value.replace(/[^\d]/g, '');
-    setCantidadInput(cleaned);
-    const num = parseInt(cleaned, 10);
-    if (!isNaN(num) && num > 0) {
-      setCantidad(num);
-    } else if (cleaned === '') {
+  const handleCantidadChange = (e) => {
+    const value = e.target.value;
+    setCantidadInput(value);
+    const parsed = parseInt(value.replace(/[^\d]/g, ''), 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      setCantidad(parsed);
+    } else if (value === '') {
       setCantidad(0);
     }
   };
@@ -129,7 +138,9 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
       {
         tamanoId: primerTamano.id,
         nombre: primerTamano.nombre,
+        minUnidadesMayoreo: primerTamano.minUnidadesMayoreo || 3,
         precioAdicional: primerTamano.precioAdicional || primerTamano.precio || 0,
+        precioAdicionalMayoreo: primerTamano.precioAdicionalMayoreo || 0,
       },
     ]);
   };
@@ -142,7 +153,9 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
       next[index] = {
         tamanoId: tamano.id,
         nombre: tamano.nombre,
+        minUnidadesMayoreo: tamano.minUnidadesMayoreo || 3,
         precioAdicional: tamano.precioAdicional || tamano.precio || 0,
+        precioAdicionalMayoreo: tamano.precioAdicionalMayoreo || 0,
       };
       return next;
     });
@@ -166,6 +179,7 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
       estampadoPrincipal: isActuallyPersonalized ? estampadoPrincipal : null,
       estampadosAdicionales: isActuallyPersonalized ? estampadosAdicionales : [],
       requiereDiseno: isActuallyPersonalized ? requiereDiseno : false,
+      precioDisenoCustom: isActuallyPersonalized && requiereDiseno ? precioDisenoCustom : 0,
       costoDiseno: isActuallyPersonalized ? resultado.costoDiseno : 0,
       precioUnitario: resultado.precioUnitario,
       precioTotal: resultado.precioTotal,
@@ -178,22 +192,15 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
   if (!isOpen || !producto) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
-      {/* Overlay */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-surface-900/40 backdrop-blur-sm animate-fadeIn">
       <div
-        className="absolute inset-0 bg-surface-900/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal Container */}
-      <div
-        className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl animate-slideUp flex flex-col max-h-[92vh] overflow-hidden z-10"
+        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header con Info del Producto */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-surface-100 bg-surface-50/50">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-surface-200 overflow-hidden shrink-0 border border-surface-200">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 overflow-hidden shrink-0 flex items-center justify-center">
               {!imgError && producto.imagen ? (
                 <img
                   src={producto.imagen}
@@ -202,132 +209,105 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                   onError={() => setImgError(true)}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-surface-400">
-                  <ImageOff className="w-5 h-5" />
-                </div>
+                <ImageOff className="w-5 h-5 text-primary-400" />
               )}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-surface-900 truncate">
-                  {producto.nombre}
-                </h3>
-                {producto.categoria && (
-                  <span className="px-2 py-0.5 bg-surface-200 text-surface-700 text-[10px] font-semibold rounded-md shrink-0">
-                    {producto.categoria}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-surface-500 mt-0.5">
-                {esPersonalizable ? (
-                  esSoloPersonalizado ? (
-                    <>
-                      Personalizado: <strong className="text-primary-600">{formatCurrency(producto.precioPersonalizado, producto.moneda)}</strong>
-                    </>
-                  ) : (
-                    <>
-                      Base: <strong className="text-surface-800">{formatCurrency(producto.precioSinPersonalizar, producto.moneda)}</strong>
-                      {'  •  '}
-                      Personalizado: <strong className="text-primary-600">{formatCurrency(producto.precioPersonalizado, producto.moneda)}</strong>
-                    </>
-                  )
-                ) : (
+            <div>
+              <h2 className="text-sm font-bold text-surface-900 line-clamp-1">
+                {producto.nombre}
+              </h2>
+              <div className="flex items-center gap-2 text-xs text-surface-500">
+                <span>Base: <strong>{formatCurrency(producto.precioSinPersonalizar, producto.moneda)}</strong></span>
+                {esPersonalizable && (
                   <>
-                    Precio: <strong className="text-surface-900">{formatCurrency(producto.precioSinPersonalizar, producto.moneda)}</strong>
+                    <span>•</span>
+                    <span>Personalizado: <strong className="text-primary-600">{formatCurrency(producto.precioPersonalizado, producto.moneda)}</strong></span>
                   </>
                 )}
-              </p>
+              </div>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-surface-400 hover:text-surface-600 hover:bg-surface-200 transition-all cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-xl bg-surface-100 text-surface-500 hover:text-surface-800 hover:bg-surface-200 flex items-center justify-center transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Body interactivo del Cotizador */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin">
-          {/* Tipo de producto (Selector solo si es personalizable y NO es soloPersonalizado) */}
+        {/* Body Scrollable */}
+        <div className="p-5 overflow-y-auto space-y-5 flex-1">
+          {/* Selector de Modo: Sin Personalizar vs Personalizado */}
           {esPersonalizable && !esSoloPersonalizado && (
-            <div>
-              <label className="text-xs font-semibold text-surface-600 mb-2 block uppercase tracking-wider">
-                1. Selecciona Tipo de Producto
-              </label>
-              <div className="grid grid-cols-2 gap-2 bg-surface-100 p-1.5 rounded-2xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPersonalizado(false);
-                    setEstampadosAdicionales([]);
-                    setRequiereDiseno(false);
-                  }}
-                  className={`py-2.5 px-4 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer ${
-                    !personalizado
-                      ? 'bg-white text-surface-900 shadow-md'
-                      : 'text-surface-500 hover:text-surface-800'
-                  }`}
-                >
-                  Sin personalizar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPersonalizado(true)}
-                  className={`py-2.5 px-4 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer ${
-                    personalizado
-                      ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20'
-                      : 'text-surface-500 hover:text-surface-800'
-                  }`}
-                >
-                  Personalizado
-                </button>
-              </div>
+            <div className="grid grid-cols-2 p-1 bg-surface-100 rounded-2xl gap-1">
+              <button
+                type="button"
+                onClick={() => setPersonalizado(false)}
+                className={`py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  !personalizado
+                    ? 'bg-white text-surface-900 shadow-sm'
+                    : 'text-surface-500 hover:text-surface-800'
+                }`}
+              >
+                Sin Personalizar ({formatCurrency(producto.precioSinPersonalizar, producto.moneda)})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPersonalizado(true)}
+                className={`py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  personalizado
+                    ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20'
+                    : 'text-surface-500 hover:text-surface-800'
+                }`}
+              >
+                Personalizado ({formatCurrency(producto.precioPersonalizado, producto.moneda)})
+              </button>
             </div>
           )}
 
-          {/* Input cantidad */}
-          <div>
-            <label className="text-xs font-semibold text-surface-600 mb-2 block uppercase tracking-wider">
-              {esPersonalizable && !esSoloPersonalizado ? '2. Cantidad Requerida' : 'Cantidad Requerida'}
-            </label>
-            <div className="flex items-center gap-3">
+          {/* Selector de Cantidad */}
+          <div className="flex items-center justify-between p-3.5 bg-surface-50 border border-surface-200/80 rounded-2xl">
+            <span className="text-xs font-bold text-surface-700">Cantidad a cotizar:</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const n = Math.max(1, cantidad - 1);
+                  setCantidad(n);
+                  setCantidadInput(formatNumber(n));
+                }}
+                className="w-8 h-8 rounded-xl bg-white border border-surface-200 text-surface-700 font-bold hover:bg-surface-100 flex items-center justify-center cursor-pointer shadow-sm active:scale-95"
+              >
+                -
+              </button>
+
               <input
                 type="text"
                 inputMode="numeric"
                 value={cantidadInput}
-                onChange={(e) => handleCantidadChange(e.target.value)}
+                onChange={handleCantidadChange}
                 onBlur={handleCantidadBlur}
-                className="flex-1 px-4 py-3 bg-surface-50 border border-surface-200 rounded-2xl text-base font-bold text-surface-900 text-center focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
-                placeholder="Ej: 50"
+                className="w-16 py-1.5 bg-white border border-surface-300 rounded-xl text-center text-sm font-extrabold text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               />
-              <div className="flex gap-1.5">
-                {[1, 10, 50, 100].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => {
-                      setCantidad(num);
-                      setCantidadInput(String(num));
-                    }}
-                    className={`px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all ${
-                      cantidad === num
-                        ? 'bg-surface-900 text-white border-surface-900'
-                        : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-50'
-                    }`}
-                  >
-                    {num}
-                  </button>
-                ))}
-              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const n = cantidad + 1;
+                  setCantidad(n);
+                  setCantidadInput(formatNumber(n));
+                }}
+                className="w-8 h-8 rounded-xl bg-white border border-surface-200 text-surface-700 font-bold hover:bg-surface-100 flex items-center justify-center cursor-pointer shadow-sm active:scale-95"
+              >
+                +
+              </button>
             </div>
           </div>
 
-          {/* Opciones de Estampado si aplica */}
-          {tieneEstampado && personalizado && (
-            <div className="space-y-4 pt-2 border-t border-surface-100">
-              {/* Estampado Principal */}
+          {/* Opciones de Estampado / Servicio Principal */}
+          {esPersonalizable && personalizado && tieneEstampado && (
+            <div className="space-y-4 animate-fadeIn">
               <div>
                 <label className="text-xs font-bold text-surface-700 mb-2 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-primary-500" />
@@ -336,7 +316,8 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {producto.configEstampado.tamanos.map((t) => {
                     const isSelected = estampadoPrincipal?.id === t.id;
-                    const esAlPorMayor = cantidad >= 3 && t.precioMayoreo && t.precioMayoreo > 0;
+                    const minMay = t.minUnidadesMayoreo || 3;
+                    const esAlPorMayor = cantidad >= minMay && t.precioMayoreo && t.precioMayoreo > 0;
                     const precioBaseTamano = esAlPorMayor
                       ? t.precioMayoreo
                       : (t.precioPrincipal || t.precio || producto.precioPersonalizado);
@@ -356,7 +337,7 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                           <span className="text-xs font-bold">{t.nombre}</span>
                           {esAlPorMayor && (
                             <span className="text-[10px] font-extrabold px-1.5 py-0.5 bg-accent-100 text-accent-700 rounded-md">
-                              (3+ uds)
+                              ({minMay}+ uds)
                             </span>
                           )}
                         </div>
@@ -407,11 +388,17 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                           onChange={(e) => updateEstampadoAdicional(i, e.target.value)}
                           className="flex-1 px-3 py-2 bg-white border border-surface-200 rounded-lg text-xs font-medium text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                         >
-                          {producto.configEstampado.tamanos.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.nombre} (+{formatCurrency(t.precioAdicional || t.precio || 0, producto.moneda)})
-                            </option>
-                          ))}
+                          {producto.configEstampado.tamanos.map((t) => {
+                            const minMayEst = t.minUnidadesMayoreo || 3;
+                            const aplicaExtraMay = cantidad >= minMayEst && t.precioAdicionalMayoreo && t.precioAdicionalMayoreo > 0;
+                            const precioExtraMostrar = aplicaExtraMay ? t.precioAdicionalMayoreo : (t.precioAdicional || t.precio || 0);
+
+                            return (
+                              <option key={t.id} value={t.id}>
+                                {t.nombre} (+{formatCurrency(precioExtraMostrar, producto.moneda)}{aplicaExtraMay ? ` [Mayoreo ${minMayEst}+]` : ''})
+                              </option>
+                            );
+                          })}
                         </select>
                         <button
                           type="button"
@@ -426,23 +413,42 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                 )}
               </div>
 
-              {/* Elaboración de diseño */}
+              {/* Elaboración de diseño (Editable) */}
               <div className="pt-1">
-                <label className="flex items-center gap-3 p-3.5 bg-surface-50 border border-surface-200 hover:border-primary-300 rounded-2xl cursor-pointer transition-all">
-                  <input
-                    type="checkbox"
-                    checked={requiereDiseno}
-                    onChange={(e) => setRequiereDiseno(e.target.checked)}
-                    className="w-4 h-4 text-primary-600 rounded border-surface-300 focus:ring-primary-500 cursor-pointer"
-                  />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-surface-800 flex items-center gap-1.5">
+                <div className="p-3.5 bg-surface-50 border border-surface-200 rounded-2xl transition-all space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={requiereDiseno}
+                      onChange={(e) => setRequiereDiseno(e.target.checked)}
+                      className="w-4 h-4 text-primary-600 rounded border-surface-300 focus:ring-primary-500 cursor-pointer"
+                    />
+                    <span className="text-xs font-semibold text-surface-800 flex items-center gap-1.5 flex-1">
                       <PenTool className="w-4 h-4 text-primary-500" />
                       ¿Requiere elaboración de diseño?
                     </span>
-                    <span className="text-xs font-bold text-primary-600">+ $25.000 (Único)</span>
-                  </div>
-                </label>
+                  </label>
+
+                  {requiereDiseno && (
+                    <div className="flex items-center justify-between gap-2 pl-7 pt-2 border-t border-surface-200/60 animate-fadeIn">
+                      <span className="text-xs font-medium text-surface-600">Costo de elaboración de diseño:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-primary-600">$</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={typeof precioDisenoCustom === 'number' ? formatNumber(precioDisenoCustom) : precioDisenoCustom}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^\d]/g, '');
+                            setPrecioDisenoCustom(raw ? parseInt(raw, 10) : 0);
+                          }}
+                          className="w-28 px-2.5 py-1 bg-white border border-primary-300 rounded-lg text-xs font-bold text-primary-600 text-center focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                        />
+                        <span className="text-[10px] text-surface-400 font-medium">(Único)</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -501,7 +507,7 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                   <span>Extras: <strong className="text-accent-300">+{formatCurrency(resultado.costoEstampadosAdicionales, producto.moneda)}/ud</strong></span>
                 )}
                 {resultado.costoDiseno > 0 && (
-                  <span>Diseño: <strong className="text-primary-300">+$25.000</strong></span>
+                  <span>Diseño: <strong className="text-primary-300">+{formatCurrency(resultado.costoDiseno, producto.moneda)}</strong></span>
                 )}
               </div>
             )}
