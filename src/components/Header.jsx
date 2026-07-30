@@ -1,6 +1,10 @@
 import { Search, X } from 'lucide-react';
 
 export default function Header({ searchQuery, onSearchChange, totalProductos }) {
+  const isPruebas =
+    import.meta.env.VITE_IS_PRUEBAS === 'true' ||
+    (typeof window !== 'undefined' && window.location.hostname.includes('pruebas'));
+
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-surface-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,7 +32,7 @@ export default function Header({ searchQuery, onSearchChange, totalProductos }) 
                 Centro Tintas
               </h1>
               <p className="text-[11px] text-surface-400 font-medium -mt-0.5">
-                Cotizador de productos (Pruebas 🧪) (Pruebas 🧪)
+                Cotizador de productos{isPruebas ? ' (Pruebas 🧪)' : ''}
               </p>
             </div>
           </div>
