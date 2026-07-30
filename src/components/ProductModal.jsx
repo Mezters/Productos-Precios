@@ -14,7 +14,7 @@ import {
   Palette,
   User,
 } from 'lucide-react';
-import { generateId, formatNumber, parseFormattedNumber } from '../utils/helpers';
+import { generateId, formatNumber, parseFormattedNumber, getCategoryLabels } from '../utils/helpers';
 import { CATEGORIAS_CON_ESTAMPADO, TAMANOS_ESTAMPADO_DEFAULT } from '../utils/storage';
 
 const emptyProduct = {
@@ -35,6 +35,7 @@ const emptyProduct = {
 
 export default function ProductModal({ isOpen, onClose, onSave, editProduct, categoriasExistentes }) {
   const [form, setForm] = useState(emptyProduct);
+  const labels = getCategoryLabels(form.categoria);
   const [errors, setErrors] = useState({});
   const [isClosing, setIsClosing] = useState(false);
   const [customCategoria, setCustomCategoria] = useState(false);
@@ -577,10 +578,10 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
               <div>
                 <span className="text-sm font-semibold text-surface-900 flex items-center gap-1.5">
                   <Palette className="w-4 h-4 text-primary-500" />
-                  ¿Este producto es personalizable?
+                  {labels.personalizableTitle}
                 </span>
                 <p className="text-xs text-surface-400 mt-0.5">
-                  Desmarca esta casilla para productos estándar (insumos, tintas, productos terminados) que no requieren estampado ni personalización.
+                  {labels.personalizableDesc}
                 </p>
               </div>
             </label>
@@ -594,7 +595,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
                   className="w-4 h-4 text-primary-600 rounded border-surface-300 focus:ring-primary-500 cursor-pointer"
                 />
                 <span className="text-xs font-semibold text-surface-700">
-                  Ocultar opción "Sin Personalizar" (Servicio o producto 100% personalizado)
+                  {labels.ocultarSinPersonalizarLabel}
                 </span>
               </label>
             )}
@@ -606,7 +607,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-surface-700 mb-1.5">
                   <DollarSign className="w-4 h-4 text-surface-400" />
-                  {form.esPersonalizable ? 'Precio Base (Sin personalizar) *' : 'Precio del Producto *'}
+                  {form.esPersonalizable ? labels.precioBaseLabel : 'Precio del Producto *'}
                 </label>
                 <input
                   type="text"
@@ -647,7 +648,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-surface-700 mb-1.5">
                   <DollarSign className="w-4 h-4 text-primary-400" />
-                  Precio Personalizado Base *
+                  {labels.precioPersonalizadoLabel}
                 </label>
                 <input
                   type="text"
@@ -685,7 +686,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 text-sm font-bold text-primary-900">
                   <Stamp className="w-4 h-4 text-primary-600" />
-                  Opciones / Servicios Seleccionables
+                  {labels.opcionesHeader}
                 </label>
                 <button
                   type="button"
@@ -1048,7 +1049,7 @@ export default function ProductModal({ isOpen, onClose, onSave, editProduct, cat
                     {/* Precios directos por escala (Sin Personalizar) */}
                     <div>
                       <label className="text-[10px] font-medium text-surface-400 mb-1 block uppercase tracking-wider">
-                        {form.esPersonalizable ? 'Precio Base (Sin Personalizar) por Volumen' : 'Precio del Producto por Volumen'}
+                        {form.esPersonalizable ? `Precio ${labels.sinPersonalizar} por Volumen` : 'Precio del Producto por Volumen'}
                       </label>
                       {renderPriceInput(
                         escala.precioSinPersonalizar,

@@ -7,7 +7,7 @@ import {
   MessageCircle,
   Check,
 } from 'lucide-react';
-import { formatCurrency, formatNumber } from '../utils/helpers';
+import { formatCurrency, formatNumber, getCategoryLabels } from '../utils/helpers';
 
 export default function CartDrawer({
   cartItems,
@@ -28,10 +28,11 @@ export default function CartDrawer({
     msg += `-----------------------------------\n\n`;
 
     items.forEach((item, index) => {
+      const itemLabels = getCategoryLabels(item.categoria);
       msg += `*${index + 1}. ${item.nombre}*\n`;
       msg += `   • Cantidad: ${formatNumber(item.cantidad)} uds\n`;
       if (item.personalizado) {
-        msg += `   • Tipo: Personalizado\n`;
+        msg += `   • Tipo: ${itemLabels.personalizado}\n`;
         if (item.estampadoPrincipal) {
           msg += `   • Diseño Principal: ${item.estampadoPrincipal.nombre}\n`;
         }
@@ -42,7 +43,7 @@ export default function CartDrawer({
           msg += `   • Elaboración de Diseño: Sí (+${formatCurrency(item.costoDiseno, item.moneda)})\n`;
         }
       } else {
-        msg += `   • Tipo: Sin personalizar\n`;
+        msg += `   • Tipo: ${itemLabels.sinPersonalizar}\n`;
       }
       msg += `   • Precio Unitario: ${formatCurrency(item.precioUnitario, item.moneda)}\n`;
       msg += `   • Subtotal Item: *${formatCurrency(item.precioTotal, item.moneda)}*\n\n`;
@@ -150,7 +151,9 @@ export default function CartDrawer({
                   <div className="flex justify-between">
                     <span className="text-surface-400">Tipo:</span>
                     <span className="font-semibold">
-                      {item.personalizado ? 'Personalizado' : 'Sin personalizar'}
+                      {item.personalizado
+                        ? getCategoryLabels(item.categoria).personalizado
+                        : getCategoryLabels(item.categoria).sinPersonalizar}
                     </span>
                   </div>
                   {item.personalizado && item.estampadoPrincipal && (

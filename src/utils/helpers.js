@@ -2,6 +2,51 @@ export function generateId() {
   return 'prod_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
 }
 
+/**
+ * Retorna las etiquetas dinámicas según la categoría del producto.
+ * Para la categoría "Toner" / "Tóner", reemplaza "Personalizado" por "Recarga".
+ */
+export function getCategoryLabels(categoria) {
+  const normCat = String(categoria || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const isToner = normCat.includes('toner');
+
+  if (isToner) {
+    return {
+      isToner: true,
+      personalizado: 'Recarga',
+      personalizadoLower: 'recarga',
+      sinPersonalizar: 'Sin Recarga',
+      soloPersonalizado: 'Solo Recarga',
+      base: 'Sin Recarga',
+      personalizableTitle: '¿Este producto tiene opción de recarga?',
+      personalizableDesc: 'Desmarca esta casilla si es solo venta de producto terminado sin servicio de recarga.',
+      ocultarSinPersonalizarLabel: 'Ocultar opción "Sin Recarga" (Solo servicio de recarga)',
+      precioBaseLabel: 'Precio Producto (Sin Recarga) *',
+      precioPersonalizadoLabel: 'Precio Recarga Base *',
+      precioPersonalizadoSimple: 'Precio Recarga',
+      opcionesHeader: 'Opciones de Recarga',
+      mayoreoHeader: 'Precios por Volumen de Recarga',
+    };
+  }
+
+  return {
+    isToner: false,
+    personalizado: 'Personalizado',
+    personalizadoLower: 'personalizado',
+    sinPersonalizar: 'Sin Personalizar',
+    soloPersonalizado: 'Solo Personalizado',
+    base: 'Base',
+    personalizableTitle: '¿Este producto es personalizable?',
+    personalizableDesc: 'Desmarca esta casilla para productos estándar (insumos, tintas, productos terminados) que no requieren estampado ni personalización.',
+    ocultarSinPersonalizarLabel: 'Ocultar opción "Sin Personalizar" (Servicio o producto 100% personalizado)',
+    precioBaseLabel: 'Precio Base (Sin personalizar) *',
+    precioPersonalizadoLabel: 'Precio Personalizado Base *',
+    precioPersonalizadoSimple: 'Precio Personalizado',
+    opcionesHeader: 'Configuración de Opciones / Servicios / Estampados',
+    mayoreoHeader: 'Precios por Volumen',
+  };
+}
+
 export function formatCurrency(amount, currency = 'COP') {
   if (amount === undefined || amount === null || isNaN(amount)) return '$ 0';
   const num = Number(amount);

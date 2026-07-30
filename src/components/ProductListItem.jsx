@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Calculator, Edit3, Copy, Trash2, Tag, Palette, FolderOpen, ImageOff, TrendingDown, History } from 'lucide-react';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, getCategoryLabels } from '../utils/helpers';
 
 export default function ProductListItem({ producto, onEdit, onDuplicate, onDelete, onQuote, onViewHistory }) {
   const [imgError, setImgError] = useState(false);
+  const labels = getCategoryLabels(producto.categoria);
   const esPersonalizable = producto.esPersonalizable !== undefined ? producto.esPersonalizable : true;
 
   // Escalas de volumen base (reglas con minUnidades > 1)
@@ -88,7 +89,7 @@ export default function ProductListItem({ producto, onEdit, onDuplicate, onDelet
                 <div className="flex flex-wrap items-center gap-1.5">
                   <div className="flex items-center gap-1 text-surface-500">
                     <Tag className="w-3 h-3 text-surface-400" />
-                    <span>Base:</span>
+                    <span>{labels.base}:</span>
                     <strong className="text-surface-800 font-semibold">
                       {formatCurrency(producto.precioSinPersonalizar, producto.moneda)}
                     </strong>
@@ -108,7 +109,7 @@ export default function ProductListItem({ producto, onEdit, onDuplicate, onDelet
                 <div className="flex flex-wrap items-center gap-1.5">
                   <div className="flex items-center gap-1 text-surface-500">
                     <Palette className="w-3 h-3 text-primary-400" />
-                    <span>Personalizado:</span>
+                    <span>{labels.personalizado}:</span>
                     <strong className="text-primary-600 font-bold">
                       {formatCurrency(producto.precioPersonalizado, producto.moneda)}
                     </strong>

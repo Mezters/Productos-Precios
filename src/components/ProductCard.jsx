@@ -12,10 +12,11 @@ import {
   TrendingDown,
   History,
 } from 'lucide-react';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, getCategoryLabels } from '../utils/helpers';
 
 export default function ProductCard({ producto, onEdit, onDuplicate, onDelete, onQuote, onViewHistory }) {
   const [imgError, setImgError] = useState(false);
+  const labels = getCategoryLabels(producto.categoria);
   const esPersonalizable = producto.esPersonalizable !== undefined ? producto.esPersonalizable : true;
   const tieneEstampado = esPersonalizable && producto.configEstampado?.tamanos?.length > 0;
 
@@ -170,7 +171,7 @@ export default function ProductCard({ producto, onEdit, onDuplicate, onDelete, o
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <Tag className="w-3.5 h-3.5 text-surface-400" strokeWidth={2} />
-                    <span className="text-xs text-surface-500">Base:</span>
+                    <span className="text-xs text-surface-500">{labels.base}:</span>
                     <span className="text-sm font-bold text-surface-800">
                       {formatCurrency(producto.precioSinPersonalizar, producto.moneda)}
                     </span>
@@ -195,7 +196,7 @@ export default function ProductCard({ producto, onEdit, onDuplicate, onDelete, o
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <Palette className="w-3.5 h-3.5 text-primary-400" strokeWidth={2} />
-                    <span className="text-xs text-surface-500">Personalizado:</span>
+                    <span className="text-xs text-surface-500">{labels.personalizado}:</span>
                     <span className="text-sm font-bold text-primary-600">
                       {formatCurrency(producto.precioPersonalizado, producto.moneda)}
                     </span>

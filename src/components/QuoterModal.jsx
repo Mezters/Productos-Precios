@@ -8,9 +8,10 @@ import {
   ImageOff,
   ShoppingBag,
 } from 'lucide-react';
-import { formatCurrency, calcularPrecio, calcularDescuento, formatNumber } from '../utils/helpers';
+import { formatCurrency, calcularPrecio, calcularDescuento, formatNumber, getCategoryLabels } from '../utils/helpers';
 
 export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) {
+  const labels = getCategoryLabels(producto?.categoria);
   const [cantidad, setCantidad] = useState(1);
   const [cantidadInput, setCantidadInput] = useState('1');
   const [personalizado, setPersonalizado] = useState(false);
@@ -217,11 +218,11 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                 {producto.nombre}
               </h2>
               <div className="flex items-center gap-2 text-xs text-surface-500">
-                <span>Base: <strong>{formatCurrency(producto.precioSinPersonalizar, producto.moneda)}</strong></span>
+                <span>{labels.base}: <strong>{formatCurrency(producto.precioSinPersonalizar, producto.moneda)}</strong></span>
                 {esPersonalizable && (
                   <>
                     <span>•</span>
-                    <span>Personalizado: <strong className="text-primary-600">{formatCurrency(producto.precioPersonalizado, producto.moneda)}</strong></span>
+                    <span>{labels.personalizado}: <strong className="text-primary-600">{formatCurrency(producto.precioPersonalizado, producto.moneda)}</strong></span>
                   </>
                 )}
               </div>
@@ -250,7 +251,7 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                     : 'text-surface-500 hover:text-surface-800'
                 }`}
               >
-                Sin Personalizar ({formatCurrency(producto.precioSinPersonalizar, producto.moneda)})
+                {labels.sinPersonalizar} ({formatCurrency(producto.precioSinPersonalizar, producto.moneda)})
               </button>
               <button
                 type="button"
@@ -261,7 +262,7 @@ export default function QuoterModal({ isOpen, onClose, producto, onAddToCart }) 
                     : 'text-surface-500 hover:text-surface-800'
                 }`}
               >
-                Personalizado ({formatCurrency(producto.precioPersonalizado, producto.moneda)})
+                {labels.personalizado} ({formatCurrency(producto.precioPersonalizado, producto.moneda)})
               </button>
             </div>
           )}

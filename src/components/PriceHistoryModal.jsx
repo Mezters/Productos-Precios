@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, History, User, Calendar, Tag, Palette, TrendingUp, TrendingDown, ArrowRight, ShieldCheck } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency, formatDate, getCategoryLabels } from '../utils/helpers';
 
 export default function PriceHistoryModal({ isOpen, onClose, producto }) {
   const [isClosing, setIsClosing] = useState(false);
@@ -14,6 +14,8 @@ export default function PriceHistoryModal({ isOpen, onClose, producto }) {
   }, [isOpen]);
 
   if (!isOpen || !producto) return null;
+
+  const labels = getCategoryLabels(producto.categoria);
 
   const handleClose = () => {
     setIsClosing(true);
@@ -117,7 +119,7 @@ export default function PriceHistoryModal({ isOpen, onClose, producto }) {
                       <div className="p-2 bg-surface-50 rounded-lg border border-surface-100 flex items-center justify-between">
                         <div className="flex items-center gap-1 text-surface-600">
                           <Tag className="w-3 h-3 text-surface-400" />
-                          <span>Base:</span>
+                          <span>{labels.base}:</span>
                         </div>
                         <span className="font-bold text-surface-900">
                           {formatCurrency(entry.precioSinPersonalizar, producto.moneda)}
@@ -129,7 +131,7 @@ export default function PriceHistoryModal({ isOpen, onClose, producto }) {
                         <div className="p-2 bg-primary-50/50 rounded-lg border border-primary-100 flex items-center justify-between">
                           <div className="flex items-center gap-1 text-primary-700">
                             <Palette className="w-3 h-3 text-primary-400" />
-                            <span>Personalizado:</span>
+                            <span>{labels.personalizado}:</span>
                           </div>
                           <span className="font-bold text-primary-700">
                             {formatCurrency(entry.precioPersonalizado, producto.moneda)}
